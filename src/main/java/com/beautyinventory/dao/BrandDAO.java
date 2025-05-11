@@ -1,33 +1,29 @@
-// brandDAO
+// BrandDAO class - stores all APIs relating to Brands/Brand Tiers in our Beauty Inventory Database
+
 package com.beautyinventory.dao;
 
-import com.beautyinventory.DatabaseConnection;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
+import com.beautyinventory.DatabaseConnection;
 
 public class BrandDAO {
-    
+
     private Connection conn;
+    private PreparedStatement getBrandTierPerformanceStmt;
 
     public BrandDAO() {
-        this.conn = DatabaseConnection.getConnection(); 
+        this.conn = DatabaseConnection.getConnection();
+        prepareStatements(); 
     }
 
-    /* DETAIL API - getBrandTierPerformance
-     * Author: Inaya Rizvi
-     * params: 
-     *      - Date startDate: beginning of time interval to view 
-     *      - Date endDate: end of time interval to view
-     * 
-     * Calculates and displays total sales and inventory details for specified brand tier.
-     * returns: brand tier name, total revenue, total units sold, average price per unit, total restocks for specified tier.
+    /** 
+     * Initializes necessary prepared statement (only 1 right now, can increase as Database is expanded
+     * and more APIs are created)
      */
-    public List<String> getBrandTierPerformance(Date startDate, Date endDate) {
-        List<String> performanceResults = new ArrayList<>();
-
-        // Query to actually retrieve and calculate performance details
-        String query = "SELECT \n" + 
+    private void prepareStatements() {
+        try {
+            String getBrandTierPerformanceQuery = "SELECT \n" + 
                 "\tbrandTier,\n" +
                 "\tCOALESCE(SUM(totalRevenue), 0) AS \"Total Revenue\",\n" +
                 "\tCOALESCE(SUM(totalUnitsSold), 0) AS \"Total Units Sold\",\n" +
@@ -49,14 +45,34 @@ public class BrandDAO {
                 ") AS BrandPerformance\n" +
                 "GROUP BY brandTier;";
 
-        try (
-            PreparedStatement stmt = conn.prepareStatement(query)
-        ) {
-            // Setting parameters
-            stmt.setDate(1, startDate);
-            stmt.setDate(2, endDate);
+            // Prepare statement ONLY once
+            getBrandTierPerformanceStmt = conn.prepareStatement(getBrandTierPerformanceQuery);
 
-            ResultSet rs = stmt.executeQuery();
+        } catch (SQLException e) {
+            e.printStackTrace();
+            throw new RuntimeException("Error preparing SQL statements.");
+        }
+    }
+
+/* ---------------------------------------------------------------------------------------------------------
+ * INAYA'S 2ND API (other in ProductDAO.java)
+ * ---------------------------------------------------------------------------------------------------------
+*/
+    /** getBrandTierPerformance
+     * Fetches brand tier performance data within a given date range.
+     * - param: DATE startDate (start date of analysis), DATE endDate (end date of analysis)
+     * - returns: list of formatted performance records for both brand tiers for easy comparison
+     */
+    public List<String> getBrandTierPerformance(Date startDate, Date endDate) {
+        List<String> performanceResults = new ArrayList<>();
+
+        try {
+            // Set parameters
+            getBrandTierPerformanceStmt.setDate(1, startDate);
+            getBrandTierPerformanceStmt.setDate(2, endDate);
+
+            // Execute query
+            ResultSet rs = getBrandTierPerformanceStmt.executeQuery();
 
             // Column Widths
             int brandTierWidth = 12;
@@ -66,19 +82,23 @@ public class BrandDAO {
             int restocksWidth = 18;
 
             // Calculate separator length dynamically
-            int SEPARATOR_LENGTH = brandTierWidth + revenueWidth + unitsSoldWidth + avgPriceWidth + restocksWidth + 10; 
+            int SEPARATOR_LENGTH = brandTierWidth + revenueWidth + unitsSoldWidth + avgPriceWidth + 
+                                    restocksWidth + 10; 
 
             // Print table header
-            System.out.printf("%-" + brandTierWidth + "s %" + revenueWidth + "s %" + unitsSoldWidth + "s %" + avgPriceWidth + "s %" + restocksWidth + "s%n",
-                    "Brand Tier", "Total Revenue", "Units Sold", "Avg Price Per Unit", "Total Restocks");
+            System.out.printf("%-" + brandTierWidth + "s %" + revenueWidth + "s %" + unitsSoldWidth + 
+                                "s %" + avgPriceWidth + "s %" + restocksWidth + "s%n",
+                                    "Brand Tier", "Total Revenue", "Units Sold", "Avg Price Per Unit", 
+                                        "Total Restocks");
 
             // Print separator line
-            for (int i = 0; i < SEPARATOR_LENGTH; i++) { System.out.print("-"); };
+            for (int i = 0; i < SEPARATOR_LENGTH; i++) { System.out.print("-"); }
             System.out.println();
 
             // Process query results
             while (rs.next()) {
-                String row = String.format("%-" + brandTierWidth + "s %" + revenueWidth + ".2f %" + unitsSoldWidth + "d %" + avgPriceWidth + ".2f %" + restocksWidth + "d",
+                String row = String.format("%-" + brandTierWidth + "s %" + revenueWidth + ".2f %" + 
+                                unitsSoldWidth + "d %" + avgPriceWidth + ".2f %" + restocksWidth + "d",
                         rs.getString("brandTier"),
                         rs.getDouble("Total Revenue"),
                         rs.getInt("Total Units Sold"),
@@ -89,6 +109,8 @@ public class BrandDAO {
                 performanceResults.add(row);
             }
 
+            rs.close(); // Close ResultSet
+
         } catch (SQLException e) {
             e.printStackTrace();
         }
@@ -96,7 +118,27 @@ public class BrandDAO {
         return performanceResults;
     }
 
-    // Main method used for testing
+//---------------------------------------------------------------------------------------------------------------------
+    
+    /**
+     * Closes all prepared statements and releases database resources.
+     */
+    public void close() {
+        try {
+            if (getBrandTierPerformanceStmt != null) {
+                getBrandTierPerformanceStmt.close();
+            }
+            if (conn != null) {
+                conn.close();
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Main method for testing
+     */
     public static void main(String[] args) {
         System.out.println("Testing BrandDAO...");
 
@@ -116,5 +158,8 @@ public class BrandDAO {
         } else {
             System.out.println("\nRetrieved Performance Data.");
         }
+
+        // Close resources
+        brandDAO.close();
     }
 }

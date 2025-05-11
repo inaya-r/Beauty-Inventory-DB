@@ -7,74 +7,84 @@ import java.util.List;
 import java.util.Scanner;
 
 public class App {
-    private static final ProductDAO productDAO = new ProductDAO(); 
-    private static final BrandDAO brandDAO = new BrandDAO();
 
     public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
         
-        // shutdown hook to close the database connection when the application exits
+        // Shutdown hook to close the database connection when the application exits
         Runtime.getRuntime().addShutdownHook(new Thread(DatabaseConnection::closeConnection));
-
+    
         System.out.println("\nWelcome to Beauty Inventory Management System!");
+    
+        // Create a ProductDAO instance
+        ProductDAO productDAO = new ProductDAO();
+        BrandDAO brandDAO = new BrandDAO();
 
-        while (true) {
-            System.out.println("\nMenu:");
-            System.out.println("1. Get All Product Inventory");
-            System.out.println("2. Get Product Inventory by Product Type");
-            System.out.println("3. Get Product Inventory By Brand Tier");
-            System.out.println("4. Get Brand Tier Performance");
-            System.out.println("5. Suggest Restock Levels");
-            System.out.println("6. Update Cost & Selling Price By Supplier");
-            System.out.println("7. Insert a Transaction (Sale, Restock, or Adjustment)");
-            System.out.println("8. Exit");
-            System.out.print("Enter your choice: ");
-            
-            int choice;
-            try {
-                choice = Integer.parseInt(scanner.nextLine());
-            } catch (NumberFormatException e) {
-                System.out.println("Invalid input. Please enter a number between 1 and 8.");
-                continue;
+        try {
+            while (true) {
+                System.out.println("\nMenu:");
+                System.out.println("1. Get All Product Inventory");
+                System.out.println("2. Get Product Inventory by Product Type");
+                System.out.println("3. Get Product Inventory By Brand Tier");
+                System.out.println("4. Get Brand Tier Performance");
+                System.out.println("5. Suggest Restock Levels");
+                System.out.println("6. Update Cost & Selling Price By Supplier");
+                System.out.println("7. Insert a Transaction (Sale, Restock, or Adjustment)");
+                System.out.println("8. Exit");
+                System.out.print("Enter your choice: ");
+                
+                int choice;
+                try {
+                    choice = Integer.parseInt(scanner.nextLine());
+                } catch (NumberFormatException e) {
+                    System.out.println("Invalid input. Please enter a number between 1 and 8.");
+                    continue;
+                }
+    
+                switch (choice) {
+                    case 1:
+                        getAllProductInventory(productDAO);
+                        break;
+                    case 2:
+                        getProductInventoryByProductType(scanner, productDAO);    
+                        break;
+                    case 3:
+                        getProductsByBrandTier(scanner, productDAO);
+                        break;
+                    case 4:
+                        getBrandTierPerformance(scanner, brandDAO);
+                        break;
+                    case 5:
+                        suggestRestockLevels(productDAO);
+                        break;
+                    case 6:
+                        updateCostAndSellingPriceBySupplier(scanner, productDAO);
+                        break;
+                    case 7:
+                        insertTransactionAndShowUpdatedInventory(scanner, productDAO);
+                        break;
+                    case 8:
+                        System.out.println("Exiting the application...");
+                        return;
+                    default:
+                        System.out.println("Invalid choice. Please try again.");
+                }
             }
-
-            switch (choice) {
-                case 1:
-                    getAllProductInventory();
-                    break;
-                case 2:
-                    getProductInventoryByProductType(scanner);    
-                    break;
-                case 3:
-                    getProductsByBrandTier(scanner);
-                    break;
-                case 4:
-                    getBrandTierPerformance(scanner);
-                    break;
-                case 5:
-                    suggestRestockLevels();
-                    break;
-                case 6:
-                    updateCostAndSellingPriceBySupplier(scanner);
-                    break;
-                case 7:
-                    insertTransactionAndShowUpdatedInventory(scanner);
-                    break;
-                case 8:
-                    System.out.println("Exiting the application...");
-                    scanner.close();
-                    return;
-                default:
-                    System.out.println("Invalid choice. Please try again.");
-            }
+        } finally {
+            // Ensure ProductDAO is properly closed before exiting
+            productDAO.close();
+            brandDAO.close();
+            scanner.close();
         }
     }
+    
 
 /* ---------------------------------------------------------------------------------------------------------
  * DULGUUN'S APIS
  * ---------------------------------------------------------------------------------------------------------
 */
-    private static void getProductsByBrandTier(Scanner scanner) {
+    
+    private static void getProductsByBrandTier(Scanner scanner, ProductDAO productDAO) {
         System.out.print("Enter Brand Tier (A - Affordable, L - Luxury): ");
         String brandTierInput = scanner.nextLine().trim().toUpperCase(); // ensure input is correct
 
@@ -94,7 +104,10 @@ public class App {
         } 
     }
 
-    private static void updateCostAndSellingPriceBySupplier(Scanner scanner) {
+//-------------------------------------------------------------------------------------------------------------------------
+    
+    
+    private static void updateCostAndSellingPriceBySupplier(Scanner scanner, ProductDAO productDAO) {
         System.out.println("\n\t\t **Price Update by Supplier**");
         System.out.println(
                 "This feature allows you to increase or decrease prices for all products associated with a specific supplier.");
@@ -165,30 +178,20 @@ public class App {
  * ---------------------------------------------------------------------------------------------------------
 */
 
-    /** getAllProductInventory
-     * - params: none
-     * - Retrieves and displays all product inventory data. 
-     * - calls ProductDAO.getAllProductInventory() method to fetch inventory details.
-     */
-    private static void getAllProductInventory() {
+    
+    private static void getAllProductInventory(ProductDAO productDAO) {
         System.out.println("Fetching all product inventory...");
         List<String> inventory = productDAO.getAllProductInventory();
 
         if (inventory.isEmpty()) {
             System.out.println("Finished.");
-        } else {
-            for (String row : inventory) {
-                System.out.println(row);
-            }
-        }
+        } 
     }
 
-    /** getBrandTierPerformance
-     * - params: scanner - captures user input for date range
-     * - Retrieves and displays brand tier performance data within a specific date range.  
-     * - calls ProductDAO.getBrandTierPerformance() method to fetch performance details.
-     */
-    private static void getBrandTierPerformance(Scanner scanner) {
+//-----------------------------------------------------------------------------------------------------------
+    
+    
+    private static void getBrandTierPerformance(Scanner scanner, BrandDAO brandDAO) {
         
         System.out.println("Enter Start Date (YYYY-MM-DD) or type 'today' for today's date: ");
         String startDateStr = scanner.nextLine().trim().toUpperCase();
@@ -226,23 +229,14 @@ public class App {
  * ---------------------------------------------------------------------------------------------------------
 */
 
-    /* suggestRestockLevels()
-     * params: none.
-     * Returns suggested restocks based on data from the past 30 days. 
-     */
-    private static void suggestRestockLevels() {
+    
+    private static void suggestRestockLevels(ProductDAO productDAO) {
         System.out.println("Fetching suggested restock levels...\n");
     
         List<String> restockLevels = productDAO.suggestRestockLevels();
 
         if (restockLevels.isEmpty()) {
             System.out.println("Finished.");
-        } else {
-            // Print formatted results
-            System.out.println("\nSuggested Restock Levels:");
-            for (String restockInfo : restockLevels) {
-                System.out.println(restockInfo);
-            }
         }
     }
 
@@ -251,7 +245,8 @@ public class App {
  * ---------------------------------------------------------------------------------------------------------
 */
 
-    private static void getProductInventoryByProductType(Scanner scanner) {
+    
+    private static void getProductInventoryByProductType(Scanner scanner, ProductDAO productDAO) {
         System.out.print("Select a Product Type to Recieve Inventory For: \n");
         System.out.println("\tSK - Skincare");
         System.out.println("\tMU - Makeup");
@@ -266,8 +261,10 @@ public class App {
         productDAO.getProductInventoryByProductType(productType); 
     }
 
+//-----------------------------------------------------------------------------------------------------------
 
-    private static void insertTransactionAndShowUpdatedInventory(Scanner scanner) {
+    
+    private static void insertTransactionAndShowUpdatedInventory(Scanner scanner, ProductDAO productDAO) {
         System.out.println("\n Test Transaction Insertion ");
     
         // Simulate user input for transaction
@@ -295,6 +292,4 @@ public class App {
     
         );
     }
-    
-
 }
